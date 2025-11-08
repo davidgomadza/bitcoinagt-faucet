@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Bitcoin AGT BTCGT Faucet (Simulated) — Owner Wallets Added</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-950 text-gray-100 min-h-screen flex items-center justify-center p-6">
+  <div class="w-full max-w-3xl bg-gray-900 p-6 rounded-2xl shadow-xl space-y-6">
+    <h1 class="text-2xl font-bold text-yellow-400 text-center">💧 Bitcoin AGT BTCGT Faucet — Simulation</h1>
+    <p class="text-center text-sm text-gray-400">
+      Claim <span class="text-green-400">0.000000008</span> of each token once every 24 hours.
+    </p>
+
+    <!-- Wallet input and Claim -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+      <input id="walletInput" type="text" placeholder="Enter your wallet address"
+        class="col-span-2 p-2 bg-gray-800 rounded-lg text-center focus:outline-none focus:ring-2 focus:ring-yellow-400" />
+      <button id="claimButton" class="bg-yellow-500 hover:bg-yellow-400 text-black font-bold py-2 rounded-lg">
+        Claim Tokens
+      </button>
+    </div>
+
+    <div id="status" class="text-center text-sm text-gray-400"></div>
+
+    <!-- Faucet & Owner balances -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div class="bg-gray-800 p-4 rounded-lg">
+        <h2 class="text-lg font-semibold text-yellow-300 text-center">Faucet Balances</h2>
+        <div id="balances" class="text-sm mt-3 space-y-1 text-center"></div>
+      </div>
+
+      <div class="bg-gray-800 p-4 rounded-lg">
+        <h2 class="text-lg font-semibold text-yellow-300 text-center">Owner Wallets</h2>
+        <div id="owners" class="text-sm mt-3 space-y-3"></div>
+      </div>
+    </div>
+
+    <!-- Admin controls -->
+    <div class="bg-gray-850 p-4 rounded-lg">
+      <h3 class="text-yellow-300 font-semibold">Admin: simulate transfers from owner wallets</h3>
+      <div class="mt-3 grid grid-cols-1 md:grid-cols-3 gap-2">
+        <select id="ownerSelect" class="p-2 bg-gray-800 rounded-lg">
+        </select>
+
+        <button id="transfer1000Btn" class="p-2 bg-indigo-600 rounded-lg font-bold hover:bg-indigo-500">
+          Transfer 1000 of each → Faucet
+        </button>
+
+        <button id="drainFaucetBtn" class="p-2 bg-red-600 rounded-lg font-bold hover:bg-red-500">
+          Drain Faucet into selected owner
+        </button>
+      </div>
+      <p class="mt-2 text-xs text-gray-400">
+        Note: This UI simulates balances locally. Replace simulated logic with real blockchain calls to do actual transfers.
+      </p>
+    </div>
+  </div>
+
+  <script>
+    // ---------------------- Configuration ----------------------
+    // Tokens (kept simple; amounts are tracked numerically in simulation)
+    const tokenList = [
+      { name: "Advanced Genetic Synthesis Technology", symbol: "AGT" },
+      { name: "Sealofapprovalis7628396t' S96t'", symbol: "S96t'" },
+      { name: "Bitcoinayt", symbol: "BTCYT" },
+      { name: "Bitcoin", symbol: "BTC" },
+      { name: "Global Transaction Payment Solution", symbol: "GTPS" },
+      { name: "AGT Gold", symbol: "AGOLD" }
+    ];
+
+    // Drip per claim
+    const dripAmount = 0.000000008;
+
+    // Faucet initial balance (you asked earlier: 1000 of each)
+    const faucetBalances = {};
+    tokenList.forEach(t => faucetBalances[t.symbol] = 1000.0);
+
+    // Owner wallets you provided (used here as simulated owner accounts)
+    const ownerAddresses = [
+      "J6IJNHEKBAAFDHMPLIMEEEJBODGCHMPFIBKFMCNAGNFNGEOAHJEB",
+      "J6J1nif7Xr1YBoBxiBwFhy5WsWJUhn2Rhc3ylwnAlQkL4WF745Vx"
+    ];
+
+    // Owner balances: initialize each owner with 1000 of each token (simulation)
+    const ownerBalances = {};
+    ownerAddresses.forEach(addr => {
+      ownerBalances[addr] = {};
+      tokenList.forEach(t => ownerBalances[addr][t.symbol] = 1000.0);
+    });
+
+    // Per-address claim cooldown tracking (local simulation)
+    const lastClaim = {};
+    const claimInterval = 24 * 60 * 60 * 1000; // 24 hours
+
+    // ---------------------- DOM references ----------------------
+    const walletInput = document.getElementById('walletInput');
+    const claimButton = document.getElementById('claimButton');
+    const status = document.getElementById('status');
+    const balancesDiv = document.getElementById('balances');
+    const ownersDiv = document.getElementById('owners');
+    const ownerSelect = document.getElementById('ownerSelect');
+    const transfer1000Btn = document.getElementById('transfer1000Btn');
+    const drainFaucetBtn = document.getElementById('drainFaucetBtn');
+
+    // ---------------------- Display helpers ----------------------
+    function updateBalances() {
+      balancesDiv.innerHTML = '';
+      tokenList.forEach(t => {
+        const el = document.createElement('div');
+        el.className = 'flex justify-between px-3';
+        el.innerHTML = `<span>${t.symbol}</span><span>${faucetBalances[t.symbol].toFixed(9)}</span>`;
+        balancesDiv.appendChild(el);
+      });
+    }
+
+    function updateOwnersDisplay() {
+      ownersDiv.innerHTML = '';
+      ownerSelect.innerHTML = '';
+      ownerAddresses.forEach(addr => {
+        const card = document.createElement('div');
+        card.className = 'bg-gray-900 p-3 rounded flex flex-col';
+        const header = document.createElement('div');
+        header.className = 'flex justify-between items-center';
+        header.innerHTML = `<div class="text-xs break-all">${addr}</div>`;
+        const copyBtn = document.createElement('button');
+        copyBtn.className = 'ml-2 text-xs bg-yellow-500 text-black px-2 py-1 rounded';
+        copyBtn.textContent = 'Copy';
+        copyBtn.addEventListener('click', () => navigator.clipboard.writeText(addr));
+
+        header.appendChild(copyBtn);
+        card.appendChild(header);
+
+        const list = document.createElement('div');
+        list.className = 'mt-2 text-sm';
+        tokenList.forEach(t => {
+          const row = document.createElement('div');
+          row.className = 'flex justify-between';
+          row.innerHTML = `<span>${t.symbol}</span><span>${ownerBalances[addr][t.symbol].toFixed(9)}</span>`;
+          list.appendChild(row);
+        });
+        card.appendChild(list);
+
+        ownersDiv.appendChild(card);
+
+        // select option
+        const opt = document.createElement('option');
+        opt.value = addr;
+        opt.textContent = `${addr.slice(0,8)}...${addr.slice(-6)}`;
+        ownerSelect.appendChild(opt);
+      });
+    }
+
+    // Initialize displays
+    updateBalances();
+    updateOwnersDisplay();
+
+    // ---------------------- Core faucet logic (simulation) ----------------------
+    claimButton.addEventListener('click', () => {
+      const address = walletInput.value.trim();
+      if (!address) {
+        status.innerHTML = '⚠️ Please enter a wallet address.';
+        return;
+      }
+
+      const now = Date.now();
+      const last = lastClaim[address] || 0;
+      if (now - last < claimInterval) {
+        const minutes = Math.ceil((claimInterval - (now - last)) / 60000);
+        status.innerHTML = `⏳ Please wait ${minutes} minute(s) before claiming again.`;
+        return;
+      }
+
+      // Ensure faucet has enough for every token
+      for (const t of tokenList) {
+        if (faucetBalances[t.symbol] < dripAmount) {
+          status.innerHTML = `❌ Faucet empty for ${t.symbol}. Please refill from an owner wallet.`;
+          return;
+        }
+      }
+
+      // Simulate sending: subtract from faucet, "send" to user's address (we don't track user balances here)
+      tokenList.forEach(t => faucetBalances[t.symbol] -= dripAmount);
+      lastClaim[address] = now;
+      updateBalances();
+      status.innerHTML = `✅ Sent ${dripAmount} of each token to ${address}.`;
+    });
+
+    // ---------------------- Admin controls (simulate owner -> faucet) ----------------------
+    transfer1000Btn.addEventListener('click', () => {
+      const owner = ownerSelect.value;
+      if (!owner) {
+        status.innerHTML = '⚠️ Select an owner wallet first.';
+        return;
+      }
+
+      // Attempt to transfer 1000 of each token from owner to faucet
+      for (const t of tokenList) {
+        if (ownerBalances[owner][t.symbol] < 1000) {
+          status.innerHTML = `❌ Owner ${owner} does not have 1000 ${t.symbol}. Transfer canceled.`;
+          return;
+        }
+      }
+
+      tokenList.forEach(t => {
+        ownerBalances[owner][t.symbol] -= 1000;
+        faucetBalances[t.symbol] += 1000;
+      });
+
+      updateOwnersDisplay();
+      updateBalances();
+      status.innerHTML = `✅ Transferred 1000 of each token from ${owner} → Faucet.`;
+    });
+
+    // Drain faucet into selected owner (simulate)
+    drainFaucetBtn.addEventListener('click', () => {
+      const owner = ownerSelect.value;
+      if (!owner) {
+        status.innerHTML = '⚠️ Select an owner wallet first.';
+        return;
+      }
+      // Move entire faucet balances into owner
+      tokenList.forEach(t => {
+        ownerBalances[owner][t.symbol] += faucetBalances[t.symbol];
+        faucetBalances[t.symbol] = 0.0;
+      });
+      updateOwnersDisplay();
+      updateBalances();
+      status.innerHTML = `🔻 Drained faucet into ${owner}. Faucet balances are now 0.`;
+    });
+
+    // small helper: expose objects for debugging from console
+    window._FAUCET = { tokenList, faucetBalances, ownerBalances, ownerAddresses, lastClaim, dripAmount };
+  </script>
+</body>
+</html>
